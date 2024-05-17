@@ -1,5 +1,9 @@
 #include "systemcalls.h"
-
+#include "unistd.h"
+#include "stdlib.h"
+#include "sys/wait.h"
+#include "fcntl.h"
+#include "stdio.h"
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -17,6 +21,8 @@ bool do_system(const char *cmd)
  *   or false() if it returned a failure
 */
 
+   int ret = system(cmd);
+   if(WIFEXITED(ret) == false) return false;
     return true;
 }
 
@@ -45,9 +51,6 @@ bool do_exec(int count, ...)
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
 
 /*
  * TODO:
@@ -58,9 +61,23 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
-
-    va_end(args);
-
+    pid_t pid = fork();
+    if(pid == -1) return false;
+    int ret_execv = 0;
+    if(pid == 0){
+        ret_execv = execv(command[0], command);
+	if(ret_execv == -1) exit(EXIT_FAILURE);
+    }else{
+        if(wait(&ret_execv) == -1 || WIFEXITED(ret_execv) == 0){
+		va_end(args);
+		return false;
+	}
+	  int exit_status = WEXITSTATUS(ret_execv);
+	  if(exit_status){
+            va_end(args);
+	    return false;
+	   }
+    }
     return true;
 }
 
@@ -80,10 +97,6 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
-
 
 /*
  * TODO
@@ -92,8 +105,35 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
-
-    va_end(args);
-
+   pid_t pid = fork();
+   if(pid == -1) return false;
+   int ret_execv = 0;
+   if(pid == 0){
+       int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+       if(fd < 0){
+           perror("Not able to open file");
+           exit(EXIT_FAILURE);
+       }
+       if(dup2(fd, STDOUT_FILENO) < 0){
+           perror("Not able to direct stdout");
+	   close(fd);
+	   exit(EXIT_FAILURE);
+       }
+       ret_execv = execv(command[0], command);
+       if(ret_execv == -1){
+	     close(fd);
+	     exit(EXIT_FAILURE);
+	}
+   }else{
+        if(wait(&ret_execv) == -1 || WIFEXITED(ret_execv) == 0){
+            va_end(args);
+            return false;
+         }
+         int exit_status = WEXITSTATUS(ret_execv);
+              if(exit_status){
+                 va_end(args);
+                 return false;
+              }
+         }
     return true;
 }
