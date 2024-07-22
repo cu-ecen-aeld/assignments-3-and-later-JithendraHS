@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 if [ $# -ge 2 ]
 then
     if [ -d $1 ]

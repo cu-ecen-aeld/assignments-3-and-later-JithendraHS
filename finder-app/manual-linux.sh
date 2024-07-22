@@ -12,6 +12,7 @@ BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
+SYSROOT=$(${CROSS_COMPILE}gcc -print-sysroot)
 
 if [ $# -lt 1 ]
 then
@@ -24,7 +25,6 @@ fi
 mkdir -p ${OUTDIR}
 cd "$OUTDIR"
 OUTDIR=$(realpath $(dirname $0))
-: <<'END'
 
 if [ ! -d "${OUTDIR}/linux-stable" ]; then
     #Clone only if the repository does not exist.
@@ -37,16 +37,20 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     git checkout ${KERNEL_VERSION}
 
     # TODO: Add your kernel build steps here
+    make clean
     git apply ${FINDER_APP_DIR}/mypatch.patch
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} mrproper
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} defconfig
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} all -j4
-    #make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} modules
+    # make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} modules
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} dtbs
 fi
 
 echo "Adding the Image in outdir"
-cp ${OUTDIR}/linux-stable/arch/arm64/boot/Image ${OUTDIR}
+cp ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ${OUTDIR}
+
+: << 'EOF'
+EOF
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
@@ -82,20 +86,18 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
-cp /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 lib/
-cp /usr/aarch64-linux-gnu/lib/libm.so.6 lib64/
-cp /usr/aarch64-linux-gnu/lib/libc.so.6 lib64/
-cp /usr/aarch64-linux-gnu/lib/libresolv.so.2 lib64/
+cp $(find $SYSROOT -name ld-linux-aarch64.so.1) "${OUTDIR}/rootfs/lib"
+cp $(find $SYSROOT -name libm.so.6) $(find $SYSROOT -name libresolv.so.2) $(find $SYSROOT -name libc.so.6) "${OUTDIR}/rootfs/lib64"
 
 # TODO: Make device nodes
 sudo mknod -m 666 dev/null c 1 3
 sudo mknod -m 660 dev/console c 5 1
-END
+
 # TODO: Clean and build the writer utility
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 cd ${FINDER_APP_DIR}
-make clean && make && cp writer finder.sh finder-test.sh autorun-qemu.sh ${OUTDIR}/rootfs/home && cp -r ../conf ${OUTDIR}/rootfs/home/conf
+make clean && make CROSS_COMPILE=${CROSS_COMPILE} && cp writer finder.sh finder-test.sh autorun-qemu.sh ${OUTDIR}/rootfs/home && cp -r ../conf ${OUTDIR}/rootfs/home/conf
 
 sudo cat << 'EOF' > ${OUTDIR}/rootfs/init
 #!/bin/sh
@@ -122,10 +124,11 @@ EOF
 chmod +x ${OUTDIR}/rootfs/init
 
 # TODO: Chown the root directory
-cd ${OUTDIR}
-sudo chown root:root rootfs
+cd ${OUTDIR}/rootfs
+sudo chown -R root:root *
 
 # TODO: Create initramfs.cpio.gz
-cd ${OUTDIR}/rootfs
 find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
 gzip -f ${OUTDIR}/initramfs.cpio
+
+echo "****Build successful****"
