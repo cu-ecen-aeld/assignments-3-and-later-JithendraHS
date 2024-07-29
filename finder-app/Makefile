@@ -9,6 +9,9 @@ TARGET = $(OBJS:.o=)
 	$(CC) $(CFLAGS) -g -c -o $@ $<
 	@echo --created object file $@--
 
+.PHONY: all
+all: $(TARGET)
+
 .PHONY: build
 build: $(TARGET)
 
