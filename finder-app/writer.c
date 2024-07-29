@@ -3,6 +3,7 @@
 #include <syslog.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
 int main(int argc, char *argv[]) {
   openlog(NULL, LOG_CONS | LOG_PID | LOG_NDELAY, LOG_USER);
   if (argc < 3) {
