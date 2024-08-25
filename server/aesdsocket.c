@@ -126,6 +126,7 @@ int main(int argc, char *argv[]){
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;        // Use IPv4
     hints.ai_socktype = SOCK_STREAM;  // Use TCP
+    hints.ai_flags = AI_PASSIVE;
 
     // Get address info for binding
     if ((status = getaddrinfo(NULL, PORT_TEXT, &hints, &info)) != 0) {
