@@ -120,6 +120,7 @@ int main(int argc, char *argv[]){
     sigaction(SIGTERM, &sa, NULL); // Handle termination signal
 
     openlog("Syslog_logging", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1); // Set up syslog for logging
+    printf("Logging started\n");
 
     // Set up address hints for IPv4 TCP connections
     memset(&hints, 0, sizeof(hints));
@@ -177,7 +178,7 @@ int main(int argc, char *argv[]){
         return -1;
     }
     fclose(fptr); // Close the file after initialization
-
+    printf("Listening\n");
     // Main server loop to accept and handle incoming connections
     while(keep_running) {
         sin_size = sizeof(client_addr);
@@ -192,6 +193,7 @@ int main(int argc, char *argv[]){
         // Get and log the client's IP address
         inet_ntop(client_addr.ss_family, get_in_addr((struct sockaddr *)&client_addr), s, sizeof(s));
         syslog(LOG_INFO, "Accepted connection from %s\n", s);
+        printf("Accepted connection from %s\n", s);
 
         // Open the data file in append mode
         fptr = fopen(FILE_DIR, "a+");
@@ -218,6 +220,7 @@ int main(int argc, char *argv[]){
                 *newline = '\0';  // Null-terminate the data at the newline
                 fprintf(fptr, "%s", buf); // Write data to the file
                 syslog(LOG_INFO, "Data receive complete\n");
+                printf("Data receive complete\n");
                 break;
             } else {
                 fprintf(fptr, "%s", buf); // Continue writing data if no newline found
@@ -235,6 +238,7 @@ int main(int argc, char *argv[]){
             }
         }
         syslog(LOG_INFO, "Data send complete\n");
+        printf("Data send complete\n");
         syslog(LOG_INFO, "Closed connection from %s\n", s);
         fclose(fptr); // Close the file after processing
     }
