@@ -106,6 +106,8 @@ int main(int argc, char *argv[]){
     FILE *fptr;                           // File pointer for data file
     int demon_mode=0;
 
+    printf("AESD socket started\n");
+
     if(argc == 2 && strcmp(argv[1], "-d") == 0){
         demon_mode = 1;
     }
